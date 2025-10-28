@@ -53,6 +53,8 @@ func (o *Operation) HasLabel(label string) bool {
 
 // CancelOtherWithLabel will cancel all operations besides this one with this label.
 func (o *Operation) CancelOtherWithLabel(label string) {
+	o.myManager.lock.Lock()
+	defer o.myManager.lock.Unlock()
 	all := o.myManager.All()
 	for id, op := range all {
 		if op == nil {
@@ -103,8 +105,6 @@ func (m *Manager) add(op *Operation) {
 
 // All returns all running operations.
 func (m *Manager) All() []*Operation {
-	m.lock.Lock()
-	defer m.lock.Unlock()
 	a := make([]*Operation, 0, len(m.ops))
 	for id, o := range m.ops {
 		// TODO(RSDK-12330): Remove this log once we've found how a nil operation can be
