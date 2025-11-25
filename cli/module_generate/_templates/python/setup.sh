@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env sh
 cd `dirname $0`
 
 # Create a virtual environment to run our code

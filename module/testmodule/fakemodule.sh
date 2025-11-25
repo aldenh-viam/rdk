@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # fakemodule is a completely fake module that repeatedly echos a message. Used
 # to test that modules that never start listening are stopped.

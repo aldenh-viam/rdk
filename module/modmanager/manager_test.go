@@ -107,7 +107,7 @@ func getSlowModule() (string, string) {
 		return "run.bat", "powershell.exe -Command 'Start-Sleep 2; exit 1'"
 	}
 
-	return "run.sh", "#!/bin/sh\n\nsleep 2\nexit 1"
+	return "run.sh", "#!/usr/bin/env sh\n\nsleep 2\nexit 1"
 }
 
 // Test that if a module crashes shortly after startup, in UNIX mode we get "module exited too quickly" and

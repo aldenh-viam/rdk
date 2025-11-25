@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Only update the service if it was previously installed.
 if [ -f /etc/systemd/system/viam-server.service ]

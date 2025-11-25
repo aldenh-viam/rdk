@@ -50,6 +50,8 @@
               nlopt
               ffmpeg
 
+              python3 # for module_generate_test
+
               gnuplot
             ];
           };

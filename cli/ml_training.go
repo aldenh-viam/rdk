@@ -930,7 +930,7 @@ func buildTrainingScript(customArgs []string, datasetFileRelative string) (strin
 	var script strings.Builder
 
 	// Script header and setup
-	script.WriteString("#!/bin/bash\n")
+	script.WriteString("#!/usr/bin/env bash\n")
 	script.WriteString("set -e\n\n")
 	script.WriteString("echo \"Installing training script package...\"\n")
 	script.WriteString("pip3 install --no-cache-dir /training_script\n\n")
