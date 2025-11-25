@@ -94,6 +94,7 @@ web/cmd/server/*.core
 
 # direnv (optional dev tool)
 .envrc
+.direnv/
 
 # codegpt
 .codegpt/*
