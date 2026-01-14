@@ -1122,19 +1122,11 @@ func (manager *resourceManager) processResource(
 	isModular := manager.moduleManager.Provides(conf)
 	if gNode.ResourceModel() == conf.Model {
 		if isModular {
+			// GRPC call to module/resources.go's ReconfigureResource, which will tear down and rebuild
 			if err := manager.moduleManager.ReconfigureResource(ctx, conf, modmanager.DepsToNames(deps)); err != nil {
 				return nil, false, err
 			}
 			return currentRes, false, nil
-		}
-
-		err = currentRes.Reconfigure(ctx, deps, conf)
-		if err == nil {
-			return currentRes, false, nil
-		}
-
-		if !resource.IsMustRebuildError(err) {
-			return nil, false, err
 		}
 	} else {
 		manager.logger.CInfow(ctx, "Resource models differ so resource must be rebuilt",

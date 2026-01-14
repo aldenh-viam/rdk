@@ -71,10 +71,11 @@ type Resource interface {
 	// Get the Name of the resource.
 	Name() Name
 
-	// Reconfigure must reconfigure the resource atomically and in place. If this
-	// cannot be guaranteed, then usage of AlwaysRebuild or TriviallyReconfigurable
-	// is permissible.
-	Reconfigure(ctx context.Context, deps Dependencies, conf Config) error
+	// Commenting out to show it is not needed in POC. Implementation will leave this untouched.
+	//// Reconfigure must reconfigure the resource atomically and in place. If this
+	//// cannot be guaranteed, then usage of AlwaysRebuild or TriviallyReconfigurable
+	//// is permissible.
+	//Reconfigure(ctx context.Context, deps Dependencies, conf Config) error
 
 	// DoCommand sends/receives arbitrary data
 	DoCommand(ctx context.Context, cmd map[string]interface{}) (map[string]interface{}, error)
@@ -83,6 +84,10 @@ type Resource interface {
 	// Close must be idempotent.
 	// Later reconfiguration may allow a resource to be "open" again.
 	Close(ctx context.Context) error
+}
+
+type TBD_InternalResource interface {
+	TBD_InternalReconfigure(ctx context.Context, deps Dependencies, conf Config) error
 }
 
 // Dependencies are a set of resources that a resource requires for reconfiguration.

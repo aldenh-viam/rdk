@@ -977,7 +977,7 @@ func (r *localRobot) updateWeakAndOptionalDependents(ctx context.Context) {
 			// the check in `localRobot.resourceHasWeakDependencies`.
 			switch resName {
 			case web.InternalServiceName:
-				if err := res.Reconfigure(ctxWithTimeout, allResources, resource.Config{}); err != nil {
+				if err := res.(resource.TBD_InternalResource).TBD_InternalReconfigure(ctxWithTimeout, allResources, resource.Config{}); err != nil {
 					r.Logger().CErrorw(
 						ctx,
 						"failed to reconfigure internal service during weak/optional dependencies update",
@@ -996,7 +996,7 @@ func (r *localRobot) updateWeakAndOptionalDependents(ctx context.Context) {
 					)
 					break
 				}
-				err = res.Reconfigure(ctxWithTimeout, components, resource.Config{ConvertedAttributes: fsCfg})
+				err = res.(resource.TBD_InternalResource).TBD_InternalReconfigure(ctxWithTimeout, components, resource.Config{ConvertedAttributes: fsCfg})
 				if err != nil {
 					r.Logger().CErrorw(
 						ctx,
@@ -1070,9 +1070,29 @@ func (r *localRobot) updateWeakAndOptionalDependents(ctx context.Context) {
 		// would be a modular resource that has optional dependencies.
 		isModular := r.manager.moduleManager.Provides(conf)
 		if isModular {
+			// GRPC call to module/resources.go's ReconfigureResource, which will tear down and rebuild
 			err = r.manager.moduleManager.ReconfigureResource(ctx, conf, modmanager.DepsToNames(deps))
 		} else {
-			err = res.Reconfigure(ctx, deps, conf)
+			if internalResource, ok := res.(resource.TBD_InternalResource); ok {
+				err = internalResource.TBD_InternalReconfigure(ctx, deps, conf)
+			} else {
+				// copied from robot/impl/resource_manager.go processResource
+				if err := r.manager.closeAndUnsetResource(ctx, resNode); err != nil {
+					r.manager.logger.CError(ctx, err)
+				}
+				newRes, err := r.newResource(ctx, resNode, conf)
+				if err != nil {
+					r.manager.logger.CDebugw(ctx,
+						"failed to build resource of new model",
+						"name", resName,
+						"old_model", resNode.ResourceModel(),
+						"new_model", conf.Model,
+					)
+				}
+				//if newRes != nil { // do something; will NPE if newRes is nil
+				resNode.SwapResource(newRes, conf.Model, r.manager.opts.ftdc)
+				//}
+			}
 		}
 		if err != nil {
 			if resource.IsMustRebuildError(err) {

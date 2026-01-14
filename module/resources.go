@@ -457,15 +457,6 @@ func (m *Module) reconfigureResource(
 		resLogger.SetLevel(*logLevel)
 	}
 
-	err = res.Reconfigure(ctx, deps, *conf)
-	if err == nil {
-		return res, nil
-	}
-
-	if !resource.IsMustRebuildError(err) {
-		return nil, err
-	}
-
 	if err := res.Close(ctx); err != nil {
 		m.logger.Error(err)
 	}
