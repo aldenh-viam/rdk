@@ -121,6 +121,7 @@ func (m *Module) ReconfigureResource(ctx context.Context, req *pb.ReconfigureRes
 func (m *Module) ValidateConfig(ctx context.Context,
 	req *pb.ValidateConfigRequest,
 ) (*pb.ValidateConfigResponse, error) {
+	fmt.Println("DBG. ValReq:", req)
 	c, err := config.ComponentConfigFromProto(req.Config, m.logger)
 	if err != nil {
 		return nil, err
@@ -296,6 +297,7 @@ func (m *Module) getDependenciesForConstruction(ctx context.Context, depStrings 
 		// If the dependency is local to this module, add the resource object directly, rather than
 		// a client object that talks with the viam-server.
 		localRes, err := m.getLocalResource(ctx, depName)
+		fmt.Printf("Using local resource? DepStr: %q DepName: %v Type: %T Err: %v\n", c, depName, localRes, err)
 		if err == nil {
 			deps[depName] = localRes
 			continue

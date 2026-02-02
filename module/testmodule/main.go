@@ -6,20 +6,19 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/pkg/errors"
 	"go.viam.com/utils"
 	"go.viam.com/utils/trace"
 
-	"go.viam.com/rdk/components/generic"
 	"go.viam.com/rdk/components/motor"
 	"go.viam.com/rdk/components/sensor"
 	"go.viam.com/rdk/logging"
 	"go.viam.com/rdk/module"
 	"go.viam.com/rdk/resource"
 	"go.viam.com/rdk/robot/framesystem"
-	genericservice "go.viam.com/rdk/services/generic"
 )
 
 var (
@@ -31,6 +30,34 @@ var (
 	testSensorDependentModel = resource.NewModel("rdk", "test", "sensordep")
 	myMod                    *module.Module
 )
+
+// Readings always returns Readings from the sensor held inside the struct.
+func (sd *sensorDependent) Readings(ctx context.Context, _ map[string]interface{}) (map[string]interface{}, error) {
+	return sd.sensor.Readings(ctx, map[string]interface{}{})
+}
+
+func newSensor(name resource.Name, logger logging.Logger) sensor.Sensor {
+	return &Sensor{
+		Named:  name.AsNamed(),
+		logger: logger,
+	}
+}
+
+// Sensor is a fake Sensor device that always returns the set location.
+type Sensor struct {
+	mu sync.Mutex
+	resource.Named
+	resource.TriviallyReconfigurable
+	resource.TriviallyCloseable
+	logger logging.Logger
+}
+
+// Readings always returns the set values.
+func (s *Sensor) Readings(ctx context.Context, extra map[string]interface{}) (map[string]interface{}, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return map[string]interface{}{"a": 1, "b": 2, "c": 3}, nil
+}
 
 func main() {
 	utils.ContextualMainWithSIGPIPE(mainWithArgs, module.NewLoggerFromArgs("TestModule"))
@@ -49,51 +76,67 @@ func mainWithArgs(ctx context.Context, args []string, logger logging.Logger) err
 	}
 
 	resource.RegisterComponent(
-		generic.API,
-		helperModel,
-		resource.Registration[resource.Resource, resource.NoNativeConfig]{
-			Constructor: newHelper,
-		})
-	err = myMod.AddModelFromRegistry(ctx, generic.API, helperModel)
+		sensor.API,
+		resource.DefaultModelFamily.WithModel("fake"),
+		resource.Registration[sensor.Sensor, resource.NoNativeConfig]{Constructor: func(
+			ctx context.Context,
+			deps resource.Dependencies,
+			conf resource.Config,
+			logger logging.Logger,
+		) (sensor.Sensor, error) {
+			return newSensor(conf.ResourceName(), logger), nil
+		}})
+	err = myMod.AddModelFromRegistry(ctx, sensor.API, resource.DefaultModelFamily.WithModel("fake"))
 	if err != nil {
 		return err
 	}
 
-	resource.RegisterService(
-		genericservice.API,
-		otherModel,
-		resource.Registration[resource.Resource, resource.NoNativeConfig]{Constructor: newOther})
-	err = myMod.AddModelFromRegistry(ctx, genericservice.API, otherModel)
-	if err != nil {
-		return err
-	}
+	// resource.RegisterComponent(
+	//  	generic.API,
+	//  	helperModel,
+	//  	resource.Registration[resource.Resource, resource.NoNativeConfig]{
+	//  		Constructor: newHelper,
+	//  	})
+	// err = myMod.AddModelFromRegistry(ctx, generic.API, helperModel)
+	// if err != nil {
+	//  	return err
+	// }
+	//
+	// resource.RegisterService(
+	// 	genericservice.API,
+	// 	otherModel,
+	// 	resource.Registration[resource.Resource, resource.NoNativeConfig]{Constructor: newOther})
+	// err = myMod.AddModelFromRegistry(ctx, genericservice.API, otherModel)
+	// if err != nil {
+	// 	return err
+	// }
 
-	resource.RegisterComponent(
-		motor.API,
-		testMotorModel,
-		resource.Registration[resource.Resource, resource.NoNativeConfig]{Constructor: newTestMotor})
-	err = myMod.AddModelFromRegistry(ctx, motor.API, testMotorModel)
-	if err != nil {
-		return err
-	}
+	// resource.RegisterComponent(
+	// 	motor.API,
+	// 	testMotorModel,
+	// 	resource.Registration[resource.Resource, resource.NoNativeConfig]{Constructor: newTestMotor})
+	// err = myMod.AddModelFromRegistry(ctx, motor.API, testMotorModel)
+	// if err != nil {
+	// 	return err
+	// }
 
-	resource.RegisterComponent(
-		generic.API,
-		testSlowModel,
-		resource.Registration[resource.Resource, resource.NoNativeConfig]{Constructor: newSlow})
-	err = myMod.AddModelFromRegistry(ctx, generic.API, testSlowModel)
-	if err != nil {
-		return err
-	}
+	// resource.RegisterComponent(
+	// 	generic.API,
+	// 	testSlowModel,
+	// 	resource.Registration[resource.Resource, resource.NoNativeConfig]{Constructor: newSlow})
+	// err = myMod.AddModelFromRegistry(ctx, generic.API, testSlowModel)
+	// if err != nil {
+	// 	return err
+	// }
 
-	resource.RegisterComponent(
-		generic.API,
-		testFSDependentModel,
-		resource.Registration[resource.Resource, *fsDepConfig]{Constructor: newFSDependent})
-	err = myMod.AddModelFromRegistry(ctx, generic.API, testFSDependentModel)
-	if err != nil {
-		return err
-	}
+	// resource.RegisterComponent(
+	// 	generic.API,
+	// 	testFSDependentModel,
+	// 	resource.Registration[resource.Resource, *fsDepConfig]{Constructor: newFSDependent})
+	// err = myMod.AddModelFromRegistry(ctx, generic.API, testFSDependentModel)
+	// if err != nil {
+	// 	return err
+	// }
 
 	resource.RegisterComponent(
 		sensor.API,
@@ -487,6 +530,7 @@ func newSensorDependent(
 		return nil, err
 	}
 	s, err := sensor.FromProvider(deps, config.Sensor)
+	fmt.Println("Err here:", err)
 	if err != nil {
 		return nil, err
 	}
@@ -504,6 +548,7 @@ type sensorDepConfig struct {
 
 // Validate will ensure that sensor
 func (sc *sensorDepConfig) Validate(_ string) ([]string, []string, error) {
+	fmt.Println("DBG. Required:", sc.Sensor)
 	sensorValidateCalls++
 	if sc.Sensor == "" {
 		return nil, nil, errors.New("empty sensor")
@@ -518,10 +563,10 @@ type sensorDependent struct {
 	sensor resource.Sensor
 }
 
-// Readings always returns Readings from the sensor held inside the struct.
-func (sd *sensorDependent) Readings(ctx context.Context, _ map[string]interface{}) (map[string]interface{}, error) {
-	return sd.sensor.Readings(ctx, map[string]interface{}{})
-}
+// // Readings always returns Readings from the sensor held inside the struct.
+// func (sd *sensorDependent) Readings(ctx context.Context, _ map[string]interface{}) (map[string]interface{}, error) {
+// 	return sd.sensor.Readings(ctx, map[string]interface{}{})
+// }
 
 // DoCommand returns the number of times validate has been called on this module.
 func (sd *sensorDependent) DoCommand(ctx context.Context, _ map[string]interface{}) (map[string]interface{}, error) {

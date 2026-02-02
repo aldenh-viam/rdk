@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/jhump/protoreflect/desc"
 	"github.com/pkg/errors"
@@ -11,12 +12,14 @@ import (
 
 	"go.viam.com/rdk/components/motor"
 	"go.viam.com/rdk/components/motor/fake"
+	"go.viam.com/rdk/components/sensor"
 	"go.viam.com/rdk/config"
 	"go.viam.com/rdk/logging"
 	"go.viam.com/rdk/module/modmanager"
 	"go.viam.com/rdk/resource"
 	rtestutils "go.viam.com/rdk/testutils"
 	"go.viam.com/rdk/utils"
+	rutils "go.viam.com/rdk/utils"
 )
 
 func nodeNotFoundErr(name resource.Name) error {
@@ -488,4 +491,83 @@ func TestTwoModulesSameName(t *testing.T) {
 	moduleCfgs := rr.manager.moduleManager.Configs()
 	test.That(t, len(moduleCfgs), test.ShouldEqual, 1)
 	test.That(t, moduleCfgs[0].ExePath, test.ShouldEqual, simplePath)
+}
+
+func TestLocalResources(t *testing.T) {
+	ctx := context.Background()
+	// logger := logging.NewInMemoryLogger(t)
+	logger := logging.NewTestLogger(t)
+
+	// Precompile module copies to avoid timeout issues when building takes too long.
+	modPath := rtestutils.BuildTempModule(t, "module/testmodule")
+
+	robotI := setupLocalRobot(t, context.Background(), &config.Config{}, logger)
+	localRobot := robotI.(*localRobot)
+
+	moduleConfig := config.Module{
+		Name:    "demo",
+		ExePath: modPath,
+	}
+	// robot config
+	localRobot.Reconfigure(ctx, &config.Config{
+		Modules: []config.Module{moduleConfig},
+	})
+
+	fakeSensorConf := resource.Config{
+		Name:  "fake",
+		API:   sensor.API,
+		Model: resource.NewModel("rdk", "builtin", "fake"),
+	}
+
+	depSensorConf := resource.Config{
+		Name:       "depSensor",
+		API:        sensor.API,
+		Model:      resource.NewModel("rdk", "test", "sensordep"),
+		Attributes: rutils.AttributeMap{"sensor": "fake"},
+	}
+	localRobot.Reconfigure(ctx, &config.Config{
+		Components: []resource.Config{
+			fakeSensorConf, depSensorConf,
+		},
+		Modules: []config.Module{moduleConfig},
+	})
+
+	// fakeSensorI, err := mgr.AddResource(ctx, fakeSensorConf, nil)
+	// test.That(t, err, test.ShouldBeNil)
+	// fakeSensor := fakeSensorI.(sensor.Sensor)
+	// _ = fakeSensor
+	//
+	// depSensorI, err := mgr.AddResource(ctx, depSensorConf, []string{sensor.Named("fake").String()})
+	// test.That(t, err, test.ShouldBeNil)
+	//
+	// depSensor, ok := depSensorI.(sensor.Sensor)
+	// test.That(t, ok, test.ShouldBeTrue)
+	// _ = depSensor
+	// err := localRobot.manager.updateResources(ctx, &config.Diff{
+	//  	Added: &config.Config{},
+	//  	Modified: &config.ModifiedConfigDiff{
+	//  		Modules: []config.Module{moduleConfig},
+	//  	},
+	// })
+	// test.That(t, err, test.ShouldBeNil)
+	logger.Info("DBG. Updating")
+	moduleConfig.LocalVersion = "2"
+	localRobot.manager.updateResources(ctx, &config.Diff{
+		Left:  localRobot.Config(),
+		Right: localRobot.Config(),
+		Added: &config.Config{},
+		Modified: &config.ModifiedConfigDiff{
+			Modules: []config.Module{moduleConfig},
+		},
+		Removed: &config.Config{},
+	})
+	logger.Info("DBG. Updated. Reconfiguring.")
+
+	// conf := localRobot.Config()
+	// fmt.Println("Curr:", conf.Modules[0].LocalVersion)
+	// conf.Modules[0].LocalVersion = "3"
+	// localRobot.Reconfigure(ctx, conf)
+	logger.Info("DBG. Reconfigured.")
+
+	time.Sleep(time.Minute)
 }
