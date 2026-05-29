@@ -1,7 +1,7 @@
 {
   description = "A Nix-flake-based Go development environment";  # from https://github.com/the-nix-way/dev-templates
 
-  inputs.nixpkgs.url = "github:nixos/nixpkgs"; # unstable Nixpkgs
+  inputs.nixpkgs.url = "github:nixos/nixpkgs/nixos-25.11";
 
   outputs =
     { self, ... }@inputs:
@@ -53,6 +53,7 @@
               python3 # for module_generate_test
 
               gnuplot
+              graphviz
             ];
           };
         }
@@ -61,7 +62,7 @@
       packages = forEachSupportedSystem (
         { pkgs }:
         let 
-            vendorHash = "sha256-psxSxPj+7BuYvhzYArCx3RycYClz2BPA/TPMA7K7keI=";
+            vendorHash = "sha256-ehLi+IhDlvsdhhj3CTHCNVgDJ6kaAHpEj3Nlzw33p6g=";
         in
         {
           default = pkgs.buildGoModule {
